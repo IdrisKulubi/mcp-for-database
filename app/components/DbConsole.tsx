@@ -1,4 +1,8 @@
 'use client';
+import React, { useRef, useState, useEffect } from "react";
+import { useKeyboardShortcuts } from "../hooks/KeyBoardShortcuts";
+import { createShortcuts } from "../config/shortcuts";
+import { DatabaseTarget, DatabaseQueryResponse, SchemaMetadata, TableMetadata, ColumnMetadata, IndexMetadata, RelationshipMetadata } from "@/app/types/database";
 
 import {
   exportToCSV,
@@ -6,13 +10,13 @@ import {
   copyToClipboard,
   ExportData
 } from '@/app/utils/exportUtils';
-import { useState, useEffect } from 'react';
-import {
-  DatabaseTarget,
-  DatabaseQueryResponse,
-  SchemaMetadata
-} from '@/app/types/database';
 import { queryTemplates, QueryTemplate } from '@/app/config/templates';
+
+type EnhancedError = {
+  error: string;
+  details?: string;
+  suggestion?: string;
+};
 
 /**
  * DbConsole Component
@@ -27,7 +31,8 @@ import { queryTemplates, QueryTemplate } from '@/app/config/templates';
  * - Schema viewing functionality
  */
 export default function DbConsole() {
-  const [prompt, setPrompt] = useState('');
+  const [prompt, setPrompt] = useState("");
+  const [target, setTarget] = useState<DatabaseTarget>("sqlalchemy");
   // Template selection state
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] =
@@ -40,7 +45,7 @@ export default function DbConsole() {
   useEffect(() => {
     if (selectedTemplate) {
       const initial: Record<string, string> = {};
-      selectedTemplate.placeholders.forEach(ph => {
+      selectedTemplate.placeholders.forEach((ph: string) => {
         initial[ph] = '';
       });
       setPlaceholderValues(initial);
@@ -58,11 +63,11 @@ export default function DbConsole() {
       setSelectedTemplate(null);
     }
   }, [selectedTemplateId]);
-  const [target, setTarget] = useState<DatabaseTarget>('sqlalchemy');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<DatabaseQueryResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<EnhancedError | string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [schema, setSchema] = useState<SchemaMetadata | null>(null);
   const [isLoadingSchema, setIsLoadingSchema] = useState(false);
   const [showSchema, setShowSchema] = useState(false);
@@ -78,6 +83,9 @@ export default function DbConsole() {
   const [expandedTables, setExpandedTables] = useState<Set<number>>(new Set());
   const [schemaSearchTerm, setSchemaSearchTerm] = useState('');
 
+  const queryInputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Load dark mode preference on mount
   // Export state
   const [copySuccess, setCopySuccess] = useState(false);
   // Typed diagnostics helper to safely render unknown diagnostics
@@ -102,7 +110,8 @@ export default function DbConsole() {
   // Load theme preference on mount
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    const currentTheme: 'light' | 'dark' = savedTheme === 'dark' ? 'dark' : 'light';
+    const currentTheme: 'light' | 'dark' =
+      savedTheme === 'dark' ? 'dark' : 'light';
     setTheme(currentTheme);
     applyTheme(currentTheme);
   }, []);
@@ -117,13 +126,12 @@ export default function DbConsole() {
 
   /**
    * Handle form submission
-   * Calls the API route to execute database query
    */
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!prompt.trim()) {
-      setError('Please enter a prompt');
+      setError({ error: 'Please enter a prompt' });
       return;
     }
 
@@ -134,13 +142,8 @@ const handleSubmit = async (e: React.FormEvent) => {
     try {
       const response = await fetch('/api/db/query', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-          target
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt.trim(), target })
       });
 
       const data = await response.json();
@@ -156,7 +159,9 @@ const handleSubmit = async (e: React.FormEvent) => {
         setError(data.error?.message || 'An error occurred');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Network error occurred');
+      setError({
+        error: err instanceof Error ? err.message : 'Network error occurred'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -217,7 +222,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     if (expandedTables.size === schema?.tables.length) {
       setExpandedTables(new Set());
     } else {
-      setExpandedTables(new Set(schema?.tables.map((_, index) => index) || []));
+      setExpandedTables(new Set(schema?.tables.map((_: unknown, index: number) => index) || []));
     }
   };
 
@@ -229,11 +234,11 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     const searchLower = schemaSearchTerm.toLowerCase();
     return schema.tables.filter(
-      table =>
+      (table: TableMetadata) =>
         table.name.toLowerCase().includes(searchLower) ||
         table.schema.toLowerCase().includes(searchLower) ||
         table.description?.toLowerCase().includes(searchLower) ||
-        table.columns.some(col => col.name.toLowerCase().includes(searchLower))
+        table.columns.some((col: ColumnMetadata) => col.name.toLowerCase().includes(searchLower))
     );
   };
 
@@ -347,7 +352,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           {/* Schema Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-xl text-white shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
@@ -408,8 +413,8 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           {/* Search and Control Bar */}
-          <div className="bg-white dark:bg-gray-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
-            <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="bg-white dark:bg-gray-700 rounded-xl p-3 sm:p-4 border border-gray-200 dark:border-gray-600">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
               <div className="relative flex-1">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg
@@ -434,10 +439,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                   className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
                 />
               </div>
-              <div className="flex space-x-2">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 <button
                   onClick={toggleAllTablesExpansion}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors duration-200"
+                  className="flex items-center justify-center px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors duration-200 min-h-[44px] touch-manipulation flex-1 sm:flex-initial"
                 >
                   <svg
                     className="w-4 h-4 mr-2"
@@ -570,7 +575,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                              {table.columns.map((column, colIndex) => (
+                              {table.columns.map((column: ColumnMetadata, colIndex: number) => (
                                 <tr
                                   key={colIndex}
                                   className="hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-150"
@@ -615,7 +620,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                                         </span>
                                       )}
                                       {column.constraints.map(
-                                        (constraint, constraintIndex) => (
+                                        (constraint: string, constraintIndex: number) => (
                                           <span
                                             key={constraintIndex}
                                             className="bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-2 py-1 rounded-md text-xs font-medium"
@@ -652,7 +657,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                               Indexes ({table.indexes.length})
                             </h5>
                             <div className="space-y-2">
-                              {table.indexes.map((index, indexIndex) => (
+                              {table.indexes.map((index: IndexMetadata, indexIndex: number) => (
                                 <div
                                   key={indexIndex}
                                   className="bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded-lg p-3"
@@ -709,7 +714,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               Database Relationships ({schema.relationships.length})
             </h4>
             <div className="space-y-3">
-              {schema.relationships.map((rel, index) => (
+              {schema.relationships.map((rel: RelationshipMetadata, index: number) => (
                 <div
                   key={index}
                   className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200 dark:border-purple-700 rounded-xl p-4"
@@ -787,10 +792,7 @@ const handleSubmit = async (e: React.FormEvent) => {
    */
   const renderTableHeaders = (data: Record<string, unknown>[]) => {
     if (!data || data.length === 0) return null;
-
-    const firstRow = data[0];
-    const headers = Object.keys(firstRow);
-
+    const headers = Object.keys(data[0]);
     return (
       <thead className="bg-gray-50 dark:bg-gray-700">
         <tr>
@@ -812,7 +814,6 @@ const handleSubmit = async (e: React.FormEvent) => {
    */
   const renderTableRows = (data: Record<string, unknown>[]) => {
     if (!data || data.length === 0) return null;
-
     return (
       <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
         {data.map((row, rowIndex) => (
@@ -838,12 +839,117 @@ const handleSubmit = async (e: React.FormEvent) => {
     );
   };
 
+  // Concrete behaviors used by shortcuts
+  const executeQuery = async () => {
+    const q = prompt.trim();
+    if (!q) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/db/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: q, target }),
+      });
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      const data = (await res.json()) as DatabaseQueryResponse;
+      setResult(data);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setError(message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearForm = () => {
+    setPrompt("");
+    setError(null);
+    setResult(null);
+    queryInputRef.current?.focus();
+  };
+
+  const focusInput = () => {
+    queryInputRef.current?.focus();
+  };
+
+  const toggleDarkMode = () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+
+    // Tailwind with darkMode: 'class' expects the 'dark' class on <html>
+    document.documentElement.classList.toggle("dark", next);
+
+    // also toggle on body to support any non-tailwind global rules
+    document.body.classList.toggle("dark", next);
+
+    try {
+      localStorage.setItem("darkMode", next ? "1" : "0");
+    } catch (e) {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to persist darkMode', e);
+      }
+    }
+  };
+
+  useEffect(() => {
+    // restore preference on mount
+    try {
+      const pref = localStorage.getItem("darkMode");
+      const shouldDark = pref === "1";
+      setIsDarkMode(shouldDark);
+      document.documentElement.classList.toggle("dark", shouldDark);
+      document.body.classList.toggle("dark", shouldDark);
+    } catch (e) {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to read darkMode', e);
+      }
+    }
+  }, []);
+
+  const exportResults = () => {
+    if (!result || !Array.isArray((result as { data?: Record<string, unknown>[] }).data)) return;
+    const rows = (result.data ?? []) as Record<string, unknown>[];
+    const csv = convertToCSV(rows);
+    downloadCSV(csv, "query-results.csv");
+  };
+
+  // Create shortcuts using handlers defined above
+  const shortcuts = createShortcuts({
+    executeQuery,
+    clearForm,
+    focusInput,
+    toggleDarkMode,
+    exportResults,
+  });
+
+  // Register global keyboard shortcuts
+  useKeyboardShortcuts(shortcuts);
+
+  // Example: restore dark mode preference on mount
+  useEffect(() => {
+    try {
+      const pref = localStorage.getItem("darkMode");
+      if (pref === "1") {
+        setIsDarkMode(true);
+        document.documentElement.classList.add("dark");
+      }
+    } catch (e) {
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn('Failed to read darkMode', e);
+      }
+    }
+  }, []);
+
   return (
     <>
-      {/* Theme Toggle Button */}
+      {/* Theme Toggle Button - Mobile Optimized */}
       <button
         onClick={toggleTheme}
-        className="fixed top-6 right-6 z-50 p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:scale-105"
+        className="fixed top-4 right-4 sm:top-6 sm:right-6 z-50 p-3 sm:p-3 rounded-full bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 hover:shadow-xl transition-all duration-300 hover:scale-105 min-w-[44px] min-h-[44px] flex items-center justify-center"
         aria-label={`Current theme: ${theme}. Click to toggle`}
         title={`Current: ${theme === 'light' ? 'Light' : 'Dark'} mode`}
       >
@@ -872,14 +978,14 @@ const handleSubmit = async (e: React.FormEvent) => {
         )}
       </button>
 
-      <div className="max-w-7xl mx-auto p-8">
-        <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+        <div className="bg-white dark:bg-gray-800 shadow-2xl rounded-lg sm:rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden">
           {/* Header */}
-          <div className="px-8 py-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
-            <div className="flex items-center mb-4">
+          <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200 dark:border-gray-600">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center mb-4">
               <div className="flex-shrink-0">
                 <svg
-                  className="h-8 w-8 text-blue-600 dark:text-blue-400"
+                  className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -888,15 +994,15 @@ const handleSubmit = async (e: React.FormEvent) => {
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth={2}
-                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 01-2 2z"
                   />
                 </svg>
               </div>
-              <div className="ml-4">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              <div className="ml-3 sm:ml-4 mt-1 sm:mt-0">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100">
                   Database Console
                 </h1>
-                <p className="mt-2 text-base text-gray-600 dark:text-gray-400">
+                <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
                   Query your database using natural language prompts powered by
                   the Model Context Protocol
                 </p>
@@ -905,19 +1011,22 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="px-8 py-8 space-y-8">
-            <div className="grid md:grid-cols-2 gap-8">
+          <form
+            onSubmit={handleSubmit}
+            className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-4 sm:space-y-6 lg:space-y-8"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
               {/* Query Template Selection */}
               <div className="md:col-span-2 mb-2">
                 <label
                   htmlFor="template-select"
-                  className="block text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2"
+                  className="block text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2"
                 >
                   Select a Query Template
                 </label>
                 <select
                   id="template-select"
-                  className="w-full border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-2 mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  className="w-full border-2 border-gray-200 dark:border-gray-600 rounded-xl px-3 py-3 sm:py-2 mb-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base min-h-[44px]"
                   value={selectedTemplateId}
                   onChange={e => setSelectedTemplateId(e.target.value)}
                   disabled={isLoading}
@@ -1014,7 +1123,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               <div className="md:col-span-2">
                 <label
                   htmlFor="prompt"
-                  className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center"
+                  className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4 flex items-center"
                 >
                   <svg
                     className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400"
@@ -1033,10 +1142,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </label>
                 <textarea
                   id="prompt"
+                  ref={queryInputRef}
                   value={prompt}
                   onChange={e => setPrompt(e.target.value)}
                   placeholder="e.g., Show me all users who registered in the last 30 days, or Get the total sales for this month..."
-                  className="w-full px-4 py-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-all duration-200 resize-none"
+                  className="w-full px-3 sm:px-4 py-3 sm:py-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-all duration-200 resize-none text-base leading-relaxed"
                   rows={4}
                   disabled={isLoading}
                 />
@@ -1049,7 +1159,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               <div>
                 <label
                   htmlFor="target"
-                  className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center"
+                  className="text-base sm:text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4 flex items-center"
                 >
                   <svg
                     className="w-5 h-5 mr-2 text-green-600 dark:text-green-400"
@@ -1076,7 +1186,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   id="target"
                   value={target}
                   onChange={e => setTarget(e.target.value as DatabaseTarget)}
-                  className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-all duration-200"
+                  className="w-full px-3 sm:px-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 dark:focus:border-blue-400 transition-all duration-200 text-base min-h-[44px]"
                   disabled={isLoading}
                 >
                   <option value="sqlalchemy">SQLAlchemy (Python ORM)</option>
@@ -1087,7 +1197,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   Choose your database connection type
                 </p>
                 {/* Test Connection button placed below the target select for visibility */}
-                <div className="mt-3">
+                <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={async () => {
                       setIsTestingConnection(true);
@@ -1120,13 +1230,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                         setIsTestingConnection(false);
                       }
                     }}
-                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+                    className="inline-flex items-center justify-center px-4 py-3 sm:py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm min-h-[44px] touch-manipulation active:scale-95 transition-transform"
                   >
                     {isTestingConnection ? 'Testing...' : 'Test Connection'}
                   </button>
                   {connectionStatus && (
                     <div
-                      className={`inline-flex items-center px-3 py-2 text-sm rounded-lg ml-3 shadow-sm ${connectionStatus.success ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}
+                      className={`flex flex-col sm:inline-flex items-start sm:items-center px-3 py-2 text-sm rounded-lg sm:ml-3 mt-2 sm:mt-0 shadow-sm ${connectionStatus.success ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}
                       role="status"
                       aria-live="polite"
                     >
@@ -1169,11 +1279,11 @@ const handleSubmit = async (e: React.FormEvent) => {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
               <button
                 type="submit"
                 disabled={isLoading || !prompt.trim()}
-                className="flex-1 flex justify-center items-center px-8 py-4 border border-transparent rounded-xl shadow-lg text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200"
+                className="flex-1 flex justify-center items-center px-6 sm:px-8 py-3 sm:py-4 border border-transparent rounded-xl shadow-lg text-base sm:text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 min-h-[48px] sm:min-h-[52px] touch-manipulation active:scale-95"
               >
                 {isLoading ? (
                   <>
@@ -1225,7 +1335,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   showSchema ? () => setShowSchema(false) : handleFetchSchema
                 }
                 disabled={isLoadingSchema}
-                className="flex justify-center items-center px-8 py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl shadow-lg text-lg font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200"
+                className="flex justify-center items-center px-6 sm:px-8 py-3 sm:py-4 border-2 border-gray-300 dark:border-gray-600 rounded-xl shadow-lg text-base sm:text-lg font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-purple-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-200 min-h-[48px] sm:min-h-[52px] touch-manipulation active:scale-95"
               >
                 {isLoadingSchema ? (
                   <>
@@ -1292,7 +1402,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           {/* Error Display */}
           {error && (
-            <div className="px-8 pb-6">
+            <div className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6">
               <div className="bg-gradient-to-r from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border-2 border-red-200 dark:border-red-800 rounded-2xl p-6 shadow-lg">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
@@ -1316,7 +1426,23 @@ const handleSubmit = async (e: React.FormEvent) => {
                       Query Error
                     </h3>
                     <div className="text-base text-red-700 dark:text-red-300 leading-relaxed">
-                      {error}
+                      {typeof error === 'string' ? (
+                        error
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="font-semibold">{error.error}</div>
+                          {error.details && (
+                            <div className="text-sm text-red-600 dark:text-red-400">
+                              {error.details}
+                            </div>
+                          )}
+                          {error.suggestion && (
+                            <div className="text-sm text-red-600 dark:text-red-400">
+                              <strong>Suggestion:</strong> {error.suggestion}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1324,9 +1450,9 @@ const handleSubmit = async (e: React.FormEvent) => {
             </div>
           )}
 
-          {/* Results Display */}
+          {/* Results */}
           {result && result.success && (
-            <div className="px-8 pb-8">
+            <div className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8">
               {result.mocked && (
                 <div className="mb-4 px-6 py-3 rounded-lg bg-yellow-100 text-yellow-800 border border-yellow-200">
                   <strong>Note:</strong> These results are mocked because the
@@ -1365,23 +1491,12 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </div>
               </div>
 
-              {/* Query Display */}
               {result.query && (
                 <div className="mb-8">
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-1 rounded-2xl">
                     <h4 className="flex items-center text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4 px-4 pt-4">
-                      <svg
-                        className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
+                      <svg className="w-5 h-5 mr-2 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 01-2 2z" />
                       </svg>
                       Generated SQL Query
                     </h4>
@@ -1394,11 +1509,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                 </div>
               )}
 
-              {/* Results Table */}
               {result.data && result.data.length > 0 ? (
                 <div>
                   <div className="bg-gray-50 dark:bg-gray-700/50 p-1 rounded-2xl">
-                    <div className="flex items-center justify-between px-4 pt-4 mb-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-3 sm:px-4 pt-3 sm:pt-4 mb-4 sm:mb-6 gap-3 sm:gap-0">
                       <h4 className="flex items-center text-lg font-semibold text-gray-800 dark:text-gray-200">
                         <svg
                           className="w-5 h-5 mr-2 text-blue-600 dark:text-blue-400"
@@ -1410,7 +1524,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2h2z"
                           />
                         </svg>
                         Query Results
@@ -1418,10 +1532,10 @@ const handleSubmit = async (e: React.FormEvent) => {
                           {result.data.length} rows
                         </span>
                       </h4>
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                         <button
                           onClick={handleExportCSV}
-                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors duration-200"
+                          className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors duration-200 min-h-[44px] touch-manipulation active:scale-95"
                           title="Export as CSV"
                         >
                           <svg
@@ -1441,7 +1555,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                         </button>
                         <button
                           onClick={handleExportJSON}
-                          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors duration-200"
+                          className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors duration-200 min-h-[44px] touch-manipulation active:scale-95"
                           title="Export as JSON"
                         >
                           <svg
@@ -1461,11 +1575,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                         </button>
                         <button
                           onClick={handleCopyToClipboard}
-                          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium ${
+                          className={`flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2 text-sm font-medium ${
                             copySuccess
                               ? 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/30 border-green-300 dark:border-green-700'
                               : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500'
-                          } border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors duration-200`}
+                          } border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-500 transition-colors duration-200 min-h-[44px] touch-manipulation active:scale-95`}
                           title="Copy to clipboard"
                         >
                           {copySuccess ? (
@@ -1506,8 +1620,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                         </button>
                       </div>
                     </div>
-                    <div className="mx-4 mb-4 overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-600 rounded-xl">
-                      <div className="overflow-x-auto bg-white dark:bg-gray-800">
+                    <div className="mx-2 sm:mx-4 mb-4 overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-600 rounded-xl">
+                      <div className="overflow-x-auto bg-white dark:bg-gray-800 scrollbar-visible">
                         <table className="min-w-full divide-y divide-gray-300 dark:divide-gray-600">
                           {renderTableHeaders(result.data)}
                           {renderTableRows(result.data)}
@@ -1565,7 +1679,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.972 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              <p className="text-lg font-medium text-gray-700 dark:text-gray-300">Loading queries...</p>
+              <p className="text-lg font-medium text-gray-700 dark:text-gray-300">
+                Loading queries...
+              </p>
             </div>
           )}
 
@@ -1575,4 +1691,25 @@ const handleSubmit = async (e: React.FormEvent) => {
       </div>
     </>
   );
+}
+
+// helper CSV utilities
+function convertToCSV(data: Record<string, unknown>[]) {
+  if (!data.length) return "";
+  const headers = Object.keys(data[0]);
+  const rows = data.map((r) =>
+    headers.map((h) => JSON.stringify(r[h] ?? "")).join(",")
+  );
+  return [headers.join(","), ...rows].join("\n");
+}
+
+function downloadCSV(csv: string, filename: string) {
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
 }

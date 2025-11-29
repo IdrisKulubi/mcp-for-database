@@ -47,37 +47,69 @@ Transform natural language into powerful database queries through an intuitive w
 
 This repository is participating in **Hacktoberfest 2025**! We welcome contributions from developers of all skill levels. After **15 approved pull requests**, you'll be recognized as a project collaborator!
 
+### 🏆 Mid-Hacktoberfest Update
+
+We're halfway through Hacktoberfest 2025 and the response has been incredible! Here's our progress:
+
+**🎯 Top Contributors (as of mid-October 2025):**
+
+🥇 [**@Andrew Qu**](https://github.com/quuu) - **17 commits** - Contributing valuable improvements and bug fixes
+
+🥈 [**@Sheikh Mohammad Nazmul H.**](https://github.com/sheikhmohdnazmulhasan) - **17 commits** - Implementing authentication features and code refactoring
+
+🥉 [**@Malte Ubl**](https://github.com/cramforce) - **13 commits** - Providing technical expertise and code improvements
+
+**📊 Community Impact:**
+- **30+ active contributors** from around the world
+- **100+ commits** since October 1st
+- **Major features** added: Authentication system, keyboard shortcuts, structured logging, deployment automation
+- **Multiple languages** and frameworks represented in our contributor base
+
+**🚀 Recent Achievements:**
+- ✅ JWT-based Role-Based Access Control (RBAC) system
+- ✅ Keyboard shortcuts for power users
+- ✅ Structured JSON logging with correlation IDs
+- ✅ Automated deployment workflows
+- ✅ Enhanced error handling with actionable suggestions
+- ✅ User management API with authentication
+
+**🎯 Next Milestone:** We're looking forward to recognizing our first project collaborators after they reach 15 approved PRs!
+
 ## 🎬 Visual Tour
+
 Here are some screenshots/GIF showcasing the features of mcp-for-database:
 
 ### Homepage
+
 <img src="https://github.com/user-attachments/assets/e592c00a-b206-4dc6-aaff-92a462184c11" alt="Main Dashboard ScreenShot" width="800" />
 
-*Central dashboard with high-level metrics and quick actions.*
+_Central dashboard with high-level metrics and quick actions._
 <br>
 
 ### Database Console
+
 <img src="https://github.com/user-attachments/assets/9a183aea-4d75-458a-9fca-62c77f8c0024" alt="Database Console" width="800" />
 
-*Query your database using plain English and view results instantly.*
+_Query your database using plain English and view results instantly._
 <br>
 
 ### Live Demo (GIF)
-   ![mcp-for-gif GIF](https://github.com/user-attachments/assets/54a5ceca-05b6-4e9c-a3eb-6dd58df151c9)
-   <br>
-*An animated demonstration of exploring features of mcp-for-database.*
+
+![mcp-for-gif GIF](https://github.com/user-attachments/assets/54a5ceca-05b6-4e9c-a3eb-6dd58df151c9)
+<br>
+_An animated demonstration of exploring features of mcp-for-database._
 
 ### Database Console in Action (GIF)
-   ![database-console-demo GIF](https://github.com/user-attachments/assets/dd31a131-0a12-49a7-87bd-480e1c764a99)
 
-*Watch how to use natural language to query your database:*
+![database-console-demo GIF](https://github.com/user-attachments/assets/dd31a131-0a12-49a7-87bd-480e1c764a99)
 
-*1. Connect to your preferred database (SQLite/Snowflake)*
+_Watch how to use natural language to query your database:_
 
-*2. Type your query in plain English*
+_1. Connect to your preferred database (SQLite/Snowflake)_
 
-*3. See the results instantly in a formatted table*
+_2. Type your query in plain English_
 
+_3. See the results instantly in a formatted table_
 
 ### Quick Start for Contributors
 
@@ -441,6 +473,16 @@ After **15 approved pull requests**, you'll be:
 - Recognized as a project collaborator
 - Eligible for Hacktoberfest completion
 
+### 🏆 Current Leaderboard
+
+**Top Contributors (Mid-Hacktoberfest 2025):**
+
+1. **@Andrew Qu** - 17 commits 🥇
+2. **@Sheikh Mohammad Nazmul H.** - 17 commits 🥈  
+3. **@Malte Ubl** - 13 commits 🥉
+
+*Leaderboard updates daily during Hacktoberfest*
+
 ---
 
 ## 📄 License
@@ -455,6 +497,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **TailwindCSS** for the utility-first CSS framework
 - **MCP-DB Connector** for the database integration
 - **Hacktoberfest** community for inspiring open-source contributions
+
+### 🌟 Special Thanks to Our Top Contributors
+
+- **@Andrew Qu** - For valuable improvements and bug fixes
+- **@Sheikh Mohammad Nazmul H.** - For implementing authentication features and code refactoring
+- **@Malte Ubl** - For providing technical expertise and code improvements
+- **All 30+ contributors** who have made this project what it is today!
+
+*Thank you for making MCP Database Console better with every contribution! 🚀*
 
 ---
 

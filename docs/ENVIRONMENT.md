@@ -15,6 +15,15 @@ DATABASE_URL=sqlite:///local_dev.db
 # DATABASE_TYPE=sqlalchemy
 # DATABASE_URL=postgresql://user:password@localhost:5432/dbname
 
+# SQLAlchemy Pool Configuration (optional)
+# POOL_SIZE=5
+# POOL_MAX_OVERFLOW=10
+# POOL_TIMEOUT=30
+# POOL_RECYCLE=1800
+# POOL_PRE_PING=true
+# POOL_USE_LIFO=false
+# POOL_LOG_EVENTS=true
+
 # For Snowflake (uncomment and configure as needed)
 # DATABASE_TYPE=snowflake
 # SNOWFLAKE_ACCOUNT=your_account
@@ -32,9 +41,20 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 # NEXT_PUBLIC_GA_ID=your_google_analytics_id
 # SENTRY_DSN=your_sentry_dsn
 
-# Optional: Authentication (for future use)
-# NEXTAUTH_SECRET=your_nextauth_secret
-# NEXTAUTH_URL=http://localhost:3000
+# Authentication Configuration
+JWT_SECRET=your_jwt_secret_key_here
+DEFAULT_ADMIN_EMAIL=admin@example.com
+DEFAULT_ADMIN_PASSWORD=admin1234
+AUTO_AUTH=false
+
+# Redis Configuration (for user and credential storage)
+REDIS_URL=redis://localhost:6379
+
+# Credential Encryption (REQUIRED for production)
+# Generate a secure 256-bit key: openssl rand -base64 32
+CREDENTIAL_ENCRYPTION_KEY=your_base64_encoded_encryption_key_here
+# Development fallback (NOT secure for production)
+CREDENTIAL_ENCRYPTION_SEED=development-seed-key
 ```
 
 ## Instructions
